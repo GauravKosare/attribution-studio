@@ -199,6 +199,53 @@ tr:hover td { background: var(--bg-elev-2); }
 
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text-faint); }
 .empty-state .big { font-size: 40px; margin-bottom: 10px; }
+.empty-state .hint { font-size: 12.5px; margin-top: 8px; color: var(--text-faint); max-width: 380px; margin-left: auto; margin-right: auto; }
+
+/* ---------- Micro-transitions: content settles in, doesn't just appear ---------- */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.kpi-row .kpi-card, .callout, .panel {
+  animation: fadeInUp 0.32s cubic-bezier(.2,.7,.3,1) both;
+}
+.kpi-row .kpi-card:nth-child(1) { animation-delay: 0ms; }
+.kpi-row .kpi-card:nth-child(2) { animation-delay: 30ms; }
+.kpi-row .kpi-card:nth-child(3) { animation-delay: 60ms; }
+.kpi-row .kpi-card:nth-child(4) { animation-delay: 90ms; }
+.kpi-row .kpi-card:nth-child(5) { animation-delay: 120ms; }
+.callout { animation-delay: 140ms; }
+.panel:nth-of-type(1) { animation-delay: 160ms; }
+.panel:nth-of-type(2) { animation-delay: 200ms; }
+.panel:nth-of-type(3) { animation-delay: 240ms; }
+.panel:nth-of-type(4) { animation-delay: 280ms; }
+@media (prefers-reduced-motion: reduce) {
+  .kpi-row .kpi-card, .callout, .panel { animation: none; }
+}
+
+/* ---------- Skeleton loading state (first load, before any data exists) ---------- */
+.skeleton-block {
+  border-radius: 8px;
+  background: linear-gradient(100deg, var(--bg-elev-2) 30%, var(--border) 50%, var(--bg-elev-2) 70%);
+  background-size: 220% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer { 0% { background-position: 130% 0; } 100% { background-position: -100% 0; } }
+.skeleton-kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 22px; }
+.skeleton-kpi-row .skeleton-block { height: 74px; border-radius: var(--radius); }
+.skeleton-panel { height: 220px; margin-bottom: 22px; }
+@media (max-width: 1100px) { .skeleton-kpi-row { grid-template-columns: repeat(2,1fr); } }
+
+/* ---------- Scoped (non-blocking) loading overlay for a single panel ---------- */
+.panel { position: relative; }
+.panel-loading {
+  position: absolute; inset: 0; background: color-mix(in srgb, var(--bg-elev) 82%, transparent);
+  backdrop-filter: blur(1.5px); border-radius: var(--radius); display: none;
+  align-items: center; justify-content: center; z-index: 5; gap: 10px;
+}
+.panel-loading.show { display: flex; }
+.panel-loading .spinner { width: 22px; height: 22px; border-width: 2px; }
+.panel-loading span { font-size: 12px; color: var(--text-dim); }
 </style>
 </head>
 <body>
@@ -298,10 +345,15 @@ tr:hover td { background: var(--bg-elev-2); }
     </div>
 
     <div id="resultsRoot">
-      <div class="empty-state">
-        <div class="big">👋</div>
-        <div>Choose a data source and click <b>Run analysis</b> to get started.</div>
+      <!-- Shown only until the first fetch resolves (auto-run on load) — a skeleton,
+           not a blank page, so the layout is legible before any data exists. -->
+      <div class="skeleton-kpi-row">
+        <div class="skeleton-block"></div><div class="skeleton-block"></div>
+        <div class="skeleton-block"></div><div class="skeleton-block"></div>
+        <div class="skeleton-block"></div>
       </div>
+      <div class="skeleton-block skeleton-panel"></div>
+      <div class="skeleton-block skeleton-panel"></div>
     </div>
   </main>
 </div>
@@ -391,6 +443,16 @@ async function runAnalysis() {
     if (include_ml) $('loadingText').textContent = 'Running attribution models + XGBoost/SHAP (~10–20s)...';
 
     if (state.source === 'upload') {
+      const missing = ['file-tp', 'file-conv', 'file-spend'].filter(id => !$(id).files[0]);
+      if (missing.length) {
+        const need = { 'file-tp': 'touchpoints.csv', 'file-conv': 'conversions.csv', 'file-spend': 'channel_spend.csv' };
+        renderEmptyState(
+          '📄',
+          `Still need ${missing.map(id => `<b>${need[id]}</b>`).join(', ')}`,
+          'Drop the missing file(s) in the sidebar — schema is in docs/02_data_dictionary.md — then click Run analysis again.'
+        );
+        return;
+      }
       const fd = new FormData();
       fd.append('touchpoints', $('file-tp').files[0]);
       fd.append('conversions', $('file-conv').files[0]);
@@ -425,11 +487,14 @@ async function runAnalysis() {
       data = await res.json();
     }
 
-    if (data.error) { alert(data.error); return; }
+    if (data.error) {
+      renderEmptyState('⚠️', 'No journeys could be built from this data', data.error + ' Check the schema in docs/02_data_dictionary.md, or try a wider lookback window.');
+      return;
+    }
     window.__lastResult = data;
     render(data);
   } catch (e) {
-    alert('Error running analysis: ' + e.message);
+    renderEmptyState('🔌', 'The analysis didn\'t complete', `${e.message} — check that the server (dashboards/server.py) is running, then try again.`);
     console.error(e);
   } finally {
     overlay.classList.remove('show');
@@ -446,6 +511,14 @@ function heatColor(v, max) {
   const t = Math.max(0, Math.min(1, v / (max || 1)));
   const r = Math.round(20 + t * 90), g = Math.round(40 + t * 140), b = Math.round(90 + t * 165);
   return `rgba(${r},${g},${b},${0.25 + t*0.55})`;
+}
+
+function renderEmptyState(icon, title, hint) {
+  $('resultsRoot').innerHTML = `<div class="empty-state">
+    <div class="big">${icon}</div>
+    <div><b>${title}</b></div>
+    <div class="hint">${hint}</div>
+  </div>`;
 }
 
 function render(data) {
@@ -497,6 +570,7 @@ function render(data) {
 
   // ROI
   html += `<div class="panel">
+    <div class="panel-loading" id="roiPanelLoading"><div class="spinner"></div><span>Recomputing ROI…</span></div>
     <div class="panel-head">
       <div><h3>ROI &amp; recommended budget reallocation</h3><div class="sub">Attribution model: <b id="roiModelLabel"></b></div></div>
       <div class="panel-controls">
@@ -648,9 +722,10 @@ function setupRoiControls(data) {
 async function reRunRoiOnly(baseData) {
   // Cheapest correct approach: re-run full pipeline with new ROI params.
   // (Attribution models are cached client-side would be ideal; kept simple here.)
-  const overlay = $('loadingOverlay');
-  $('loadingText').textContent = 'Recomputing ROI...';
-  overlay.classList.add('show');
+  // Scoped to the ROI panel itself (not a full-screen blackout) — a slider nudge
+  // shouldn't hide the rest of the dashboard the user was just looking at.
+  const panelOverlay = $('roiPanelLoading');
+  panelOverlay.classList.add('show');
   try {
     const body = {
       source: baseData.source, lookback_days: Number($('lookback').value), collapse_minutes: Number($('collapse').value),
@@ -668,9 +743,9 @@ async function reRunRoiOnly(baseData) {
     const data = await res.json();
     window.__lastResult = data;
     renderRoi(data.roi, data.roi_model_used, data.model_labels, data.unallocated_pool);
+    if (data.lp_comparison) renderLpTable(data.roi, data.lp_comparison);
   } finally {
-    overlay.classList.remove('show');
-    $('loadingText').textContent = 'Running attribution models...';
+    panelOverlay.classList.remove('show');
   }
 }
 

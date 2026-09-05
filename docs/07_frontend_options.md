@@ -58,3 +58,42 @@ Three reasons, in order of weight:
 - **If the job description explicitly names Power BI/Tableau**, build a `.pbix`/
   `.twbx` version too — it demonstrates a different, real skill that neither
   Streamlit nor a hand-written frontend touches.
+
+---
+
+## Addendum (2026-09-05): validated by a 5-advisor council
+
+The choice above wasn't just asserted — it was independently pressure-tested by
+5 blind advisors (a pragmatic staff engineer, a senior product designer, a
+technical hiring manager for DS/analytics roles, a senior frontend architect, and
+a deliberate contrarian instructed to find the flaw in whatever the others
+converged on), each analyzing the decision without seeing the others' answers.
+
+**Result: 5/5 independent agreement — keep Flask + hand-written HTML/CSS/JS.**
+Even the contrarian, tasked specifically with finding holes in the "obvious"
+answer, landed on the same conclusion via a different argument (demo reliability:
+no build step means no `node_modules`/Next.js build failure risk mid-interview).
+
+Converging reasons, in brief: author-fit (a from-scratch React/FastAPI stack is
+how solo, JS-inexperienced authors end up with an unfinished project);
+Streamlit/Dash impose their own visual rhythm that actively fights the "look like
+a real product" goal; the thing actually being screened for a DS/analytics
+portfolio is the modeling depth (Markov, Shapley, XGBoost+SHAP, the LP
+optimizer), not frontend framework choice; and state here is one flat
+`params → fetch → render` loop, which is a problem React's component model
+solves for cases this project doesn't have.
+
+**The one caveat every advisor converged on independently** (from 5 different
+angles — designer, architect, hiring manager, contrarian, engineer): this verdict
+has a complexity ceiling. Concretely, if the dashboard grows past roughly 3–4
+more major views/interactions, or starts showing state-synchronization bugs
+(e.g. a stale chart from a race between rapid slider drags and their fetch
+responses), the recommended next step is **Alpine.js or Lit — a lightweight
+reactive layer — before a full React rewrite**, not a jump straight to a
+component framework. That threshold hasn't been hit as of this addendum.
+
+**Action taken as a result** (the chairman's synthesis, not the raw consensus):
+invest further frontend effort into visual polish rather than architecture —
+see the loading-skeleton, micro-transition, and empty-state work in
+`dashboards/index.html`, done specifically in response to this council session
+rather than a stack change.
