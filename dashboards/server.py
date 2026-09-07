@@ -137,4 +137,12 @@ def upload():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5050, debug=True)
+    import os
+
+    # Local dev: `python dashboards/server.py` — debug/reload on, default port 5050.
+    # Production (Render, etc.) runs this module via gunicorn instead, which
+    # never executes this block; PORT is respected here only for parity if
+    # something does invoke this entrypoint directly in a hosted environment.
+    port = int(os.environ.get("PORT", 5050))
+    debug = os.environ.get("FLASK_DEBUG", "1") == "1"
+    app.run(host="0.0.0.0", port=port, debug=debug)

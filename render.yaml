@@ -1,0 +1,18 @@
+# Render Blueprint — Infrastructure as Code for this service.
+# Deploying via the Render MCP/dashboard creates the same service this file
+# describes; kept in-repo so the deploy config is versioned and reproducible
+# rather than only existing as click-ops in a dashboard. See:
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: attribution-studio
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 2 -b 0.0.0.0:$PORT --timeout 120 dashboards.server:app
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
