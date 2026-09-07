@@ -1,0 +1,47 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+      fail-fast: false
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        # data/raw/real_channel_journeys.csv is committed to the repo, so it's
+        # already present after checkout -- no extra download step needed.
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run test suite
+        run: python -m pytest tests/ -v --durations=10
+
+      - name: Smoke-test the Flask app boots
+        run: |
+          python -c "
+          import sys; sys.path.insert(0, '.')
+          from dashboards.server import app
+          client = app.test_client()
+          res = client.get('/api/meta')
+          assert res.status_code == 200, res.status_code
+          print('OK:', res.get_json().keys())
+          "

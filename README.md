@@ -1,5 +1,8 @@
 # Attribution Studio — Multi-Touch Attribution Modeling for Marketing Spend
 
+[![tests](https://github.com/GauravKosare/attribution-studio/actions/workflows/tests.yml/badge.svg)](https://github.com/GauravKosare/attribution-studio/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **A working analytics system that answers a question every marketing team argues
 about: which channel actually deserves credit for a conversion, and where should
 budget move as a result?**
@@ -210,6 +213,21 @@ python dashboards/server.py
 Open **http://localhost:5050** — it loads with the real dataset by default and
 recomputes live as you change the sidebar controls.
 
+## Tests
+
+```bash
+python -m pytest tests/ -v
+```
+52 tests, ~15s. Not smoke tests — every attribution model is checked against a
+hand-computed toy example with a worked derivation in the test file's docstring
+(e.g. `tests/test_markov.py` hand-solves a 2-channel absorbing chain and asserts
+the code reproduces it to 1e-6), and `tests/test_journey_builder_sql.py` exists
+specifically to catch the exact class of bug that was found and fixed during
+development (pandas vs. DuckDB resolving simultaneous-timestamp ties
+differently). Runs automatically on every push via
+[GitHub Actions](.github/workflows/tests.yml) — Python 3.11 and 3.12, plus a
+smoke test that the Flask app actually boots.
+
 ## The 6 core documents + 1
 
 | # | Document | Purpose |
@@ -249,6 +267,9 @@ dashboards/
   index.html                    # dashboard UI (dark/light, Plotly.js, no build step)
   app.py                        # earlier Streamlit version, kept for comparison
 docs/                          # the 7 documents above
+tests/                         # pytest suite, 52 tests -- hand-verified expected
+                                # values, not just smoke tests (see Tests above)
+.github/workflows/tests.yml    # CI: runs the suite on every push (Python 3.11 + 3.12)
 ```
 
 ## Status

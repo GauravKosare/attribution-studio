@@ -9,3 +9,4 @@ shap>=0.44
 duckdb>=0.10
 matplotlib>=3.8
 flask>=3.0
+pytest>=8.0

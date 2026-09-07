@@ -55,6 +55,13 @@ fit for a portfolio piece meant to look and feel like a real product, not a data
 notebook. Add Power BI only if the specific jobs you're targeting list it explicitly —
 it's a different skill from the rest of this project's stack.
 
+## Testing / CI
+
+| Tool | Why | Notes |
+|---|---|---|
+| **pytest** (`tests/`) | Standard Python test runner; used for hand-verified attribution-math tests (each toy example is solved by hand in the test docstring, not just asserted against current code output), regression tests for the SQL/pandas parity bug found during development, and end-to-end pipeline smoke tests | Free. 52 tests, ~15s locally — see `README.md` "Tests" section |
+| **GitHub Actions** (`.github/workflows/tests.yml`) | Runs the full suite on every push/PR across Python 3.11 and 3.12, plus a smoke test that the Flask app actually boots | Free for public repos, no setup beyond the workflow file |
+
 ## Hosting / delivery
 
 | Tool | Why | Notes |
