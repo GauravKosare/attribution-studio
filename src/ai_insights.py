@@ -101,9 +101,22 @@ def _call_gemini(condensed: dict, api_key: str, model: str = "gemini-3.6-flash")
             ),
         )
         text = (response.text or "").strip()
+        # TEMPORARY DIAGNOSTIC -- remove once the truncation cause is
+        # confirmed against the live API. Surfaces finish_reason + token
+        # usage so a short/truncated response can be root-caused from one
+        # more live call instead of guessed at again.
+        try:
+            candidates = getattr(response, "candidates", None) or []
+            usage = getattr(response, "usage_metadata", None)
+            diag = {
+                "finish_reason": str(getattr(candidates[0], "finish_reason", None)) if candidates else None,
+                "usage": usage.model_dump() if usage and hasattr(usage, "model_dump") else None,
+            }
+        except Exception:
+            diag = None
         if not text:
-            return {"error": "Gemini returned an empty response."}
-        return {"summary": text, "model": model, "provider": "gemini"}
+            return {"error": "Gemini returned an empty response.", "_diag": diag}
+        return {"summary": text, "model": model, "provider": "gemini", "_diag": diag}
     except Exception as e:  # pragma: no cover -- network/API errors
         return {"error": f"Gemini call failed: {e}"}
 
