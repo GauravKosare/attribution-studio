@@ -86,12 +86,14 @@ def _call_gemini(condensed: dict, api_key: str, model: str = "gemini-3.6-flash")
                 system_instruction=SYSTEM_PROMPT,
                 # max_output_tokens caps thinking + the visible answer
                 # COMBINED, not the answer alone. Measured directly against
-                # the live API: thinking_level="LOW" (the floor -- Gemini 3.x
-                # has no MINIMAL/off option) still consumes ~570-600 tokens
-                # on its own before writing a single word of the actual
-                # answer. 1500 leaves roughly 900 tokens of headroom for the
-                # ~150-word answer after thinking, confirmed sufficient.
-                max_output_tokens=1500,
+                # the live API across several attempts: thinking_level="LOW"
+                # (the floor -- Gemini 3.x has no MINIMAL/off option) is
+                # NOT a fixed cost -- it scaled with prompt complexity and
+                # kept eating a 1500-token budget too. Set generously high;
+                # at Gemini's free-tier pricing this is still a fraction of
+                # a cent even in the worst case, and it's cheaper to overpay
+                # a few hundred tokens than to keep guessing a tighter cap.
+                max_output_tokens=4000,
                 thinking_config=types.ThinkingConfig(thinking_level="LOW"),
             ),
         )
