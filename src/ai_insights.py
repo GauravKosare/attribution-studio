@@ -88,10 +88,16 @@ def _call_gemini(condensed: dict, api_key: str, model: str = "gemini-3.6-flash")
                 # Newer Gemini models spend part of max_output_tokens on an
                 # internal "thinking" pass before the visible answer -- for a
                 # short summarization task that budget can eat the entire cap
-                # and truncate the real response to nothing. Disable it: this
-                # is a direct restatement of already-computed numbers, not a
-                # task that benefits from extended reasoning.
-                thinking_config=types.ThinkingConfig(thinking_budget=0),
+                # and truncate the real response to nothing. Gemini 3.x
+                # models control this via thinking_level (a string: LOW/
+                # MEDIUM/HIGH), not the older numeric thinking_budget --
+                # passing thinking_budget to a 3.x model is REJECTED
+                # (400 INVALID_ARGUMENT), confirmed against the live API.
+                # LOW is the minimum available (no MINIMAL/off option), which
+                # is enough for this task: a direct restatement of numbers
+                # already computed, not something that benefits from
+                # extended reasoning.
+                thinking_config=types.ThinkingConfig(thinking_level="LOW"),
             ),
         )
         text = (response.text or "").strip()
@@ -112,7 +118,16 @@ def _call_groq(condensed: dict, api_key: str, model: str = "openai/gpt-oss-120b"
         client = Groq(api_key=api_key)
         response = client.chat.completions.create(
             model=model,
-            max_tokens=400,
+            max_completion_tokens=600,
+            # gpt-oss models are reasoning models -- chain-of-thought goes to
+            # a separate `.reasoning` field, not `.content`, but with
+            # reasoning_effort unset the model can spend the whole token
+            # budget reasoning before writing anything to `.content` at all,
+            # confirmed against the live API (empty content, model_tokens
+            # fully consumed). "low" is enough for this task: a direct
+            # restatement of numbers already computed, not something that
+            # benefits from extended reasoning.
+            reasoning_effort="low",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": json.dumps(condensed, default=str)},
