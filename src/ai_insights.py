@@ -70,7 +70,7 @@ def _condense(pipeline_result: dict) -> dict:
     }
 
 
-def _call_gemini(condensed: dict, api_key: str, model: str = "gemini-2.5-flash") -> dict:
+def _call_gemini(condensed: dict, api_key: str, model: str = "gemini-3.6-flash") -> dict:
     try:
         from google import genai
         from google.genai import types
@@ -94,7 +94,7 @@ def _call_gemini(condensed: dict, api_key: str, model: str = "gemini-2.5-flash")
         return {"error": f"Gemini call failed: {e}"}
 
 
-def _call_groq(condensed: dict, api_key: str, model: str = "llama-3.3-70b-versatile") -> dict:
+def _call_groq(condensed: dict, api_key: str, model: str = "openai/gpt-oss-120b") -> dict:
     try:
         from groq import Groq
     except ImportError:
