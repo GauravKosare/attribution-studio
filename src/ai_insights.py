@@ -36,7 +36,7 @@ Rules:
 - Never invent a number that isn't in the JSON you're given."""
 
 
-def generate_narrative_summary(pipeline_result: dict, api_key: str | None = None, model: str = "claude-sonnet-4-5") -> dict:
+def generate_narrative_summary(pipeline_result: dict, api_key: str | None = None, model: str = "claude-sonnet-5") -> dict:
     """Generate a short executive-summary paragraph from an already-computed
     src.pipeline.run_pipeline() result. Returns {"summary": str, "model": str}
     on success, or {"error": str} if no API key is configured or the call

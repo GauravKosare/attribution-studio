@@ -64,7 +64,7 @@ def test_successful_call_returns_summary_and_model(monkeypatch):
     )
     assert "error" not in result
     assert "Paid Search" in result["summary"]
-    assert result["model"] == "claude-sonnet-4-5"
+    assert result["model"] == "claude-sonnet-5"
 
 
 def test_api_failure_returns_error_dict_not_exception(monkeypatch):
