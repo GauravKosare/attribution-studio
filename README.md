@@ -19,6 +19,13 @@ is a static report.
 **[Live results below](#real-world-results) come from a real, anonymized
 232,691-user customer-journey dataset — not synthetic placeholder numbers.**
 
+### **[→ Try it live: attribution-studio.onrender.com](https://attribution-studio.onrender.com)**
+Hosted on Render's free tier, so two things to expect: the first request after
+a period of inactivity takes ~30–50s (free instances spin down when idle, then
+cold-start), and larger sample sizes are noticeably slower than running this
+locally (shared/throttled free-tier CPU) — the live demo defaults to a 5,000-user
+sample for that reason; push it higher once it's loaded once and warmed up.
+
 ---
 
 ## Why this exists

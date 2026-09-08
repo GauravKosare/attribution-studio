@@ -1,0 +1,19 @@
+# Keep the build context small and the image free of dev-only cruft.
+# data/raw/real_channel_journeys.csv is NOT excluded -- the app reads it at
+# runtime (src/real_dataset_adapter.py), so it has to be in the image.
+
+.git
+.github
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+tests/
+.venv
+venv
+env
+*.log
+.DS_Store
+Thumbs.db
+.vscode
+.idea

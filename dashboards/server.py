@@ -80,7 +80,7 @@ def run():
 
     if source == "real":
         tp, conv, spend = _get_real_data()
-        n_users = int(body.get("n_users", 20000))
+        n_users = int(body.get("n_users", 5000))
         tp, conv = _subsample_by_user(tp, conv, n_users)
     else:
         params = body.get("synthetic", {})

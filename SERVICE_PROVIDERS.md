@@ -67,7 +67,11 @@ it's a different skill from the rest of this project's stack.
 | Tool | Why | Notes |
 |---|---|---|
 | **GitHub** | Version control + the actual portfolio artifact recruiters look at | Free, essential |
-| **Render / Railway / Fly.io free tier** | Hosting for the Flask dashboard (not Streamlit Community Cloud — that's Streamlit-specific and this project moved to a hand-written Flask+HTML frontend, see Document 3 §5) | Any of the three has a free tier that runs a small Flask app fine; the real dataset (44MB CSV) fits within typical free-tier disk/memory limits |
+| **Render** — where this project is actually deployed | Hosting for the Flask dashboard (not Streamlit Community Cloud — that's Streamlit-specific and this project moved to a hand-written Flask+HTML frontend, see Document 3 §5) | **Free tier now requires a card on file** for identity verification (not charged unless you upgrade) — this changed since this doc was first written. Live at [attribution-studio.onrender.com](https://attribution-studio.onrender.com); `render.yaml` in the repo root is the versioned deploy config |
+| ~~Railway / Fly.io~~ | Considered, ruled out | Both also now require a card to provision anything, no advantage over Render |
+| ~~Koyeb~~ | Considered, ruled out | Previously a genuine no-card free tier; post-acquisition, new signups can no longer get the free Starter tier at all (Pro, $29/mo, is now the entry point) |
+| ~~Hugging Face Spaces (Docker SDK)~~ | Considered, ruled out | Static Spaces stay free, but Docker/Gradio Spaces (anything with real backend compute) now require a PRO subscription — a policy change; a `Dockerfile` still lives in the repo root since it's useful for any Docker-capable host, even though this specific plan didn't pan out |
+| **PythonAnywhere** | The one remaining genuinely-free-no-card option, not used here | Real constraints that made Render the better fit once the card was added: 100 CPU-seconds/day (tight for an interactive multi-model dashboard) and a free-tier disk quota that this project's dependency stack (pandas+numpy+scipy+xgboost+shap+duckdb) may not comfortably fit |
 | **Jupyter / VS Code notebooks** | Where the exploratory modeling work (Steps 3–6) actually happens before being refactored into `src/` modules | Google Colab if you want free GPU/cloud compute and easy sharing — not needed for this project's scale, but zero-friction if you prefer not to manage a local environment |
 
 ## What you deliberately do NOT need
