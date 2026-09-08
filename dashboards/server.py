@@ -16,10 +16,18 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+# Load GEMINI_API_KEY / GROQ_API_KEY / ANTHROPIC_API_KEY (any subset) from a
+# .env file in the project root, if one exists -- see .env.example. Does
+# nothing if no .env file is present (e.g. on Render, which uses its own
+# dashboard-configured environment variables instead); real keys are never
+# committed -- .env is gitignored.
+load_dotenv(ROOT / ".env")
 
 from src.ai_insights import generate_narrative_summary
 from src.data_generator import DEFAULT_CHANNELS, generate_dataset

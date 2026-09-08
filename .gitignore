@@ -6,6 +6,12 @@ __pycache__/
 venv/
 env/
 
+# Secrets -- never commit real API keys. .env.example is the template that
+# IS committed; a real .env (any variant) never should be.
+.env
+.env.*
+!.env.example
+
 # Jupyter
 .ipynb_checkpoints/
 
