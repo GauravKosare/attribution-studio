@@ -820,7 +820,9 @@ async function generateAiSummary(data) {
     if (out.error) {
       content.innerHTML = `<b>AI executive summary</b> — <span style="color:var(--text-faint);">${out.error}</span>`;
     } else {
-      content.innerHTML = `<b>AI executive summary</b> <span style="font-size:11px;color:var(--text-faint);">(${out.model})</span><br>${out.summary}`;
+      const fellBack = out.fell_back_from && out.fell_back_from.length
+        ? ` — fell back from ${out.fell_back_from.join(', ')}` : '';
+      content.innerHTML = `<b>AI executive summary</b> <span style="font-size:11px;color:var(--text-faint);">(${out.provider}/${out.model}${fellBack})</span><br>${out.summary}`;
     }
   } catch (e) {
     content.innerHTML = `<b>AI executive summary</b> — <span style="color:var(--bad);">Request failed: ${e.message}</span>`;

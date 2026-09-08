@@ -1,86 +1,218 @@
-"""AI-generated executive summary — the actual LLM call isn't unit-testable
-(needs a real, paid API key, and network access CI shouldn't depend on), so
-these tests cover exactly what IS deterministic: the feature is fully
-optional and fails gracefully with a clear message when no key is
-configured, rather than crashing the request that asked for it.
+"""AI-generated executive summary — the actual LLM calls aren't unit-testable
+(need real, free-tier-but-still-real API keys, and network access CI
+shouldn't depend on), so these tests cover exactly what IS deterministic:
+the provider fallback chain (Gemini -> Groq -> Anthropic) falls through
+correctly on missing keys or failed calls, and the feature degrades
+gracefully with a clear message when nothing is configured, rather than
+crashing the request that asked for it.
 """
 from __future__ import annotations
 
-import os
+import sys
+import types
 
 import pytest
 
 from src.ai_insights import generate_narrative_summary
 
 
-@pytest.fixture(autouse=True)
-def no_api_key(monkeypatch):
-    """Guarantee these tests run as if no key is configured, regardless of
-    the actual environment this suite happens to run in."""
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-
-
-def test_missing_api_key_returns_error_not_exception():
-    result = generate_narrative_summary({"summary": {"total_journeys": 100}})
-    assert "error" in result
-    assert "ANTHROPIC_API_KEY" in result["error"]
-
-
-def test_missing_api_key_does_not_attempt_network_call():
-    # If this tried to actually call the API without a key, it would raise
-    # an SDK auth error instead of returning our own clean error dict.
-    result = generate_narrative_summary({"summary": {}})
-    assert "summary" not in result
-    assert isinstance(result["error"], str)
-
-
-def test_successful_call_returns_summary_and_model(monkeypatch):
-    # Mock the Anthropic client entirely -- no real network call, no real
-    # key needed, deterministic. Confirms the request/response plumbing
-    # (condensing the pipeline result, extracting text blocks) is correct.
-    import types
-
-    class FakeTextBlock:
-        type = "text"
-        text = "Paid Search is under-funded relative to its modeled credit."
-
+def _fake_gemini_module(text="ok", raise_error=None):
     class FakeResponse:
-        content = [FakeTextBlock()]
+        def __init__(self):
+            self.text = text
 
-    class FakeMessages:
-        def create(self, **kwargs):
-            assert "system" in kwargs and "messages" in kwargs
+    class FakeModels:
+        def generate_content(self, **kwargs):
+            if raise_error:
+                raise raise_error
             return FakeResponse()
 
-    class FakeAnthropic:
+    class FakeClient:
         def __init__(self, api_key):
-            self.messages = FakeMessages()
+            self.models = FakeModels()
 
-    fake_module = types.SimpleNamespace(Anthropic=FakeAnthropic)
-    monkeypatch.setitem(__import__("sys").modules, "anthropic", fake_module)
+    class FakeTypes:
+        class GenerateContentConfig:
+            def __init__(self, **kwargs):
+                pass
 
-    result = generate_narrative_summary(
-        {"summary": {"total_journeys": 100}, "roi": []}, api_key="sk-ant-fake-test-key"
-    )
-    assert "error" not in result
-    assert "Paid Search" in result["summary"]
-    assert result["model"] == "claude-sonnet-5"
+    fake_genai = types.SimpleNamespace(Client=FakeClient, types=FakeTypes)
+    fake_google = types.SimpleNamespace(genai=fake_genai)
+    return fake_google, fake_genai, FakeTypes
 
 
-def test_api_failure_returns_error_dict_not_exception(monkeypatch):
-    import types
+def _fake_groq_module(text="ok", raise_error=None):
+    class FakeMessage:
+        content = text
+
+    class FakeChoice:
+        message = FakeMessage()
+
+    class FakeResponse:
+        choices = [FakeChoice()]
+
+    class FakeCompletions:
+        def create(self, **kwargs):
+            if raise_error:
+                raise raise_error
+            return FakeResponse()
+
+    class FakeChat:
+        completions = FakeCompletions()
+
+    class FakeGroq:
+        def __init__(self, api_key):
+            self.chat = FakeChat()
+
+    return types.SimpleNamespace(Groq=FakeGroq)
+
+
+def _fake_anthropic_module(text="ok", raise_error=None):
+    class FakeTextBlock:
+        type = "text"
+
+        def __init__(self, t):
+            self.text = t
+
+    class FakeResponse:
+        def __init__(self, t):
+            self.content = [FakeTextBlock(t)]
 
     class FakeMessages:
         def create(self, **kwargs):
-            raise RuntimeError("simulated API failure")
+            if raise_error:
+                raise raise_error
+            return FakeResponse(text)
 
     class FakeAnthropic:
         def __init__(self, api_key):
             self.messages = FakeMessages()
 
-    fake_module = types.SimpleNamespace(Anthropic=FakeAnthropic)
-    monkeypatch.setitem(__import__("sys").modules, "anthropic", fake_module)
+    return types.SimpleNamespace(Anthropic=FakeAnthropic)
 
-    result = generate_narrative_summary({"summary": {}}, api_key="sk-ant-fake-test-key")
+
+@pytest.fixture(autouse=True)
+def clean_env(monkeypatch):
+    """Guarantee tests run as if no provider keys are set in the environment,
+    regardless of the actual machine/CI they run on."""
+    for var in ("GEMINI_API_KEY", "GROQ_API_KEY", "ANTHROPIC_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
+
+
+def test_no_provider_configured_returns_clear_error():
+    result = generate_narrative_summary({"summary": {}})
     assert "error" in result
-    assert "simulated API failure" in result["error"]
+    assert "GEMINI_API_KEY" in result["error"]
+    assert len(result["attempts"]) == 3  # all three tried, all three missing keys
+
+
+def test_gemini_succeeds_first_no_fallback_needed(monkeypatch):
+    fake_google, fake_genai, fake_types = _fake_gemini_module(text="Paid Search is under-funded.")
+    monkeypatch.setitem(sys.modules, "google", fake_google)
+    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
+    monkeypatch.setitem(sys.modules, "google.genai.types", fake_types)
+
+    result = generate_narrative_summary(
+        {"summary": {}}, api_keys={"gemini": "fake-gemini-key"}, providers=["gemini", "groq", "anthropic"]
+    )
+    assert "error" not in result
+    assert result["provider"] == "gemini"
+    assert "Paid Search" in result["summary"]
+    assert "fell_back_from" not in result
+
+
+def test_falls_back_to_groq_when_gemini_key_missing(monkeypatch):
+    fake_groq = _fake_groq_module(text="Groq wrote this summary.")
+    monkeypatch.setitem(sys.modules, "groq", fake_groq)
+
+    # no gemini key provided at all -> should skip straight to groq
+    result = generate_narrative_summary(
+        {"summary": {}}, api_keys={"groq": "fake-groq-key"}, providers=["gemini", "groq", "anthropic"]
+    )
+    assert "error" not in result
+    assert result["provider"] == "groq"
+    assert result["fell_back_from"] == ["gemini"]
+
+
+def test_falls_back_to_groq_when_gemini_call_fails(monkeypatch):
+    fake_google, fake_genai, fake_types = _fake_gemini_module(raise_error=RuntimeError("gemini rate limited"))
+    monkeypatch.setitem(sys.modules, "google", fake_google)
+    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
+    monkeypatch.setitem(sys.modules, "google.genai.types", fake_types)
+
+    fake_groq = _fake_groq_module(text="Fallback worked.")
+    monkeypatch.setitem(sys.modules, "groq", fake_groq)
+
+    result = generate_narrative_summary(
+        {"summary": {}},
+        api_keys={"gemini": "fake-key", "groq": "fake-key"},
+        providers=["gemini", "groq", "anthropic"],
+    )
+    assert "error" not in result
+    assert result["provider"] == "groq"
+    assert result["fell_back_from"] == ["gemini"]
+
+
+def test_falls_back_to_anthropic_when_gemini_and_groq_both_fail(monkeypatch):
+    fake_google, fake_genai, fake_types = _fake_gemini_module(raise_error=RuntimeError("down"))
+    monkeypatch.setitem(sys.modules, "google", fake_google)
+    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
+    monkeypatch.setitem(sys.modules, "google.genai.types", fake_types)
+
+    fake_groq = _fake_groq_module(raise_error=RuntimeError("rate limited"))
+    monkeypatch.setitem(sys.modules, "groq", fake_groq)
+
+    fake_anthropic = _fake_anthropic_module(text="Anthropic saved the day.")
+    monkeypatch.setitem(sys.modules, "anthropic", fake_anthropic)
+
+    result = generate_narrative_summary(
+        {"summary": {}},
+        api_keys={"gemini": "k1", "groq": "k2", "anthropic": "k3"},
+        providers=["gemini", "groq", "anthropic"],
+    )
+    assert "error" not in result
+    assert result["provider"] == "anthropic"
+    assert set(result["fell_back_from"]) == {"gemini", "groq"}
+
+
+def test_all_providers_fail_returns_error_with_attempts(monkeypatch):
+    fake_google, fake_genai, fake_types = _fake_gemini_module(raise_error=RuntimeError("e1"))
+    monkeypatch.setitem(sys.modules, "google", fake_google)
+    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
+    monkeypatch.setitem(sys.modules, "google.genai.types", fake_types)
+
+    fake_groq = _fake_groq_module(raise_error=RuntimeError("e2"))
+    monkeypatch.setitem(sys.modules, "groq", fake_groq)
+
+    fake_anthropic = _fake_anthropic_module(raise_error=RuntimeError("e3"))
+    monkeypatch.setitem(sys.modules, "anthropic", fake_anthropic)
+
+    result = generate_narrative_summary(
+        {"summary": {}},
+        api_keys={"gemini": "k1", "groq": "k2", "anthropic": "k3"},
+        providers=["gemini", "groq", "anthropic"],
+    )
+    assert "error" in result
+    assert len(result["attempts"]) == 3
+    assert all("error" in a for a in result["attempts"])
+
+
+def test_restricting_providers_list_skips_others(monkeypatch):
+    fake_groq = _fake_groq_module(text="Only groq ran.")
+    monkeypatch.setitem(sys.modules, "groq", fake_groq)
+
+    result = generate_narrative_summary(
+        {"summary": {}}, api_keys={"groq": "fake-key"}, providers=["groq"]
+    )
+    assert "error" not in result
+    assert result["provider"] == "groq"
+
+
+def test_empty_response_treated_as_failure(monkeypatch):
+    fake_groq = _fake_groq_module(text="")  # empty string response
+    monkeypatch.setitem(sys.modules, "groq", fake_groq)
+
+    result = generate_narrative_summary(
+        {"summary": {}}, api_keys={"groq": "fake-key"}, providers=["groq"]
+    )
+    assert "error" in result

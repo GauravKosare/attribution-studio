@@ -160,20 +160,54 @@ computed into the paragraph a human analyst would write, not inventing new
 analysis.
 
 ### Design choices
-- **Opt-in, not automatic** — costs money per call; the dashboard's static
-  "Biggest divergence" callout is the free, always-on version of the same idea.
-- **Server-side API key only**, via the `ANTHROPIC_API_KEY` environment
-  variable — never a form field a visitor types a key into, never stored or
-  forwarded anywhere else. Unset means the feature returns a clear message
-  and does nothing, rather than failing or prompting for a key.
+- **Opt-in, not automatic** — costs money per call on the paid fallback; the
+  dashboard's static "Biggest divergence" callout is the free, always-on
+  version of the same idea.
+- **A free-first provider chain, not one paid API.** Tries, in order:
+  1. **Gemini** (Google AI Studio) — free tier, no card, the best writing
+     quality among the free options (see §"free hosted AI, compared" below)
+  2. **Groq** — free tier, no card, different infrastructure entirely, so a
+     Gemini-side outage or exhausted rate limit doesn't take the feature down
+  3. **Anthropic** (Claude) — paid, last resort, kept for anyone who'd rather
+     pay for Claude's writing quality specifically
+
+  Every provider gets the identical constrained system prompt and the
+  identical condensed input — switching providers changes *who answers*,
+  never *what's being asked*. On success, the response reports which
+  provider actually answered and, if earlier ones failed, which it fell back
+  from (`fell_back_from`) — surfaced directly in the dashboard callout.
+- **Server-side API keys only**, via `GEMINI_API_KEY` / `GROQ_API_KEY` /
+  `ANTHROPIC_API_KEY` environment variables — never a form field a visitor
+  types a key into, never stored or forwarded anywhere else. None configured
+  means the feature returns a clear message listing every provider it tried
+  and why each failed, rather than a bare stack trace.
 - **Constrained prompt** — the system prompt explicitly requires the model to
   restate this project's own caveats (correlational not causal, spend may be
   estimated) and forbids inventing numbers not present in the JSON it's given.
 
+### Free hosted AI, compared (why Gemini is first, Groq second)
+Researched directly rather than assumed — AWS Bedrock was the initial
+instinct but turned out to have **no free tier at all** (pay from the first
+call, same price as calling Anthropic directly, plus AWS's setup overhead).
+Five genuinely free, hosted, no-card options exist; each is built for a
+different problem, and only two actually fit "write one good paragraph
+occasionally":
+
+| Provider | Built for | Fit for this feature |
+|---|---|---|
+| **Gemini (Google AI Studio)** | General quality — the "daily driver" | Best fit: it's the one option here actually optimized for writing quality, not raw speed |
+| **Groq** | Speed (custom LPU hardware, ~500 tok/s) | Good fallback — speed doesn't matter for a button-click summary, but it's free, reliable, and independent infrastructure from Gemini |
+| **Cerebras** | Volume (wafer-scale chips, batch throughput) | Wrong shape — solves a "thousands of documents overnight" problem this feature doesn't have |
+| **Mistral** | EU data residency/compliance | Free tier requires opting into data being used for model training — a real cost for sending even demo business numbers through it |
+| **Cloudflare Workers AI** | Global edge latency | Wrong shape — this project has one server in one region, not a worldwide audience needing low-latency edge responses |
+
 ### To enable it
 ```bash
-export ANTHROPIC_API_KEY=your-key-here     # or set it in Render's dashboard for the live deployment
+export GEMINI_API_KEY=your-key-here        # free, recommended — aistudio.google.com
+export GROQ_API_KEY=your-key-here          # free fallback — console.groq.com
+export ANTHROPIC_API_KEY=your-key-here     # optional paid fallback
 ```
-Then click "Generate" next to the AI executive summary callout in the
-dashboard. Without a key, every other feature in this project works exactly
-as before — this is additive, not load-bearing.
+Set any subset in Render's dashboard for the live deployment. Then click
+"Generate" next to the AI executive summary callout. With zero keys
+configured, every other feature in this project works exactly as before —
+this is additive, not load-bearing.
