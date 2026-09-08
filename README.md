@@ -26,6 +26,20 @@ cold-start), and larger sample sizes are noticeably slower than running this
 locally (shared/throttled free-tier CPU) — the live demo defaults to a 5,000-user
 sample for that reason; push it higher once it's loaded once and warmed up.
 
+## Screenshots
+
+**Channel credit across all 8 models, plus the divergence callout that's the whole point of the project:**
+![Channel credit heatmap and comparison chart](docs/screenshots/01_hero_credit_models.png)
+
+**Every converting customer journey, as an actual Sankey diagram — not a mockup:**
+![Sankey diagram of customer journey paths](docs/screenshots/02_sankey.png)
+
+**ROI and the capped budget reallocation, with the model/shift/cap controls live:**
+![ROI table and current-vs-recommended spend chart](docs/screenshots/03_roi_reallocation.png)
+
+**Light theme (same page, same data — the whole UI is theme-aware, not just a color invert):**
+![Dashboard in light theme](docs/screenshots/04_light_theme.png)
+
 ---
 
 ## Why this exists
