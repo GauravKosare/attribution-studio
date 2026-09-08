@@ -234,6 +234,12 @@ python dashboards/server.py
 Open **http://localhost:5050** — it loads with the real dataset by default and
 recomputes live as you change the sidebar controls.
 
+**Optional:** the AI executive summary feature (§ below) needs at least one
+API key. Copy `.env.example` to `.env` and fill in `GEMINI_API_KEY` and/or
+`GROQ_API_KEY` (both free, no card — see docs/08) — loaded automatically on
+startup, nothing else in this project needs it. Skip this entirely and
+everything else still works exactly the same.
+
 ## Tests
 
 ```bash
@@ -261,7 +267,7 @@ Four additions that directly answer the gaps the core project names as open:
 | **Time-series forecasting** (`src/forecasting.py`) | "Is this month's pattern stable or a fluke?" | Beats naive baseline 4x on data with real signal — **and honestly reports it does NOT beat naive on the real 31-day dataset**, the correct answer for too-short history |
 | **Uncertainty quantification** (`src/uncertainty.py`) | "How confident should I be in any of these numbers?" | Every credit share in Document 5 now has a bootstrap 90% CI; calibration verified at 89.7% coverage against a known 20% true rate |
 | **Orchestration** (`orchestration/attribution_flow.py`) | "This only runs when someone clicks a button" | A Prefect flow (free, self-hosted, no card ever) — retries, logging, schedulable — verified running end-to-end |
-| **AI executive summary** (`src/ai_insights.py`) | "Someone still has to write the paragraph by hand" | Opt-in, free-first provider chain — Gemini → Groq → Anthropic, falling through automatically on a missing key or failed call — that writes Document 6's summary automatically, constrained to the same caveats stated everywhere else in this project |
+| **AI executive summary** (`src/ai_insights.py`) | "Someone still has to write the paragraph by hand" | Free-first provider chain (Gemini → Groq → Anthropic) confirmed working end-to-end against the live deployment with real keys — including catching and fixing two real, non-obvious API behaviors along the way (a Gemini token-budget/reasoning interaction and a Groq reasoning-model empty-response case), and one genuine transient Gemini outage that resolved automatically via fallback |
 
 Full writeup, math, and honest limitations for all five: [`docs/08_advanced_analytics.md`](docs/08_advanced_analytics.md).
 
