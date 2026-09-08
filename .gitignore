@@ -25,4 +25,9 @@ scratch_*.json
 # Large generated data (keep the real dataset itself, ignore ad-hoc exports)
 data/processed/*.parquet
 data/processed/*.csv
+data/processed/*.json
 !data/raw/real_channel_journeys.csv
+
+# Prefect local orchestration state (self-hosted, no server needed for
+# ad-hoc runs -- see orchestration/attribution_flow.py)
+.prefect/

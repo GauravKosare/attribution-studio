@@ -239,17 +239,33 @@ recomputes live as you change the sidebar controls.
 ```bash
 python -m pytest tests/ -v
 ```
-52 tests, ~15s. Not smoke tests — every attribution model is checked against a
+78 tests, ~45s. Not smoke tests — every attribution model is checked against a
 hand-computed toy example with a worked derivation in the test file's docstring
 (e.g. `tests/test_markov.py` hand-solves a 2-channel absorbing chain and asserts
-the code reproduces it to 1e-6), and `tests/test_journey_builder_sql.py` exists
+the code reproduces it to 1e-6), `tests/test_journey_builder_sql.py` exists
 specifically to catch the exact class of bug that was found and fixed during
 development (pandas vs. DuckDB resolving simultaneous-timestamp ties
-differently). Runs automatically on every push via
+differently), and `tests/test_incrementality.py` includes a negative control
+(an AA test with zero injected effect) that caught a real anti-conservative-inference
+bug during development — see Document 8. Runs automatically on every push via
 [GitHub Actions](.github/workflows/tests.yml) — Python 3.11 and 3.12, plus a
 smoke test that the Flask app actually boots.
 
-## The 6 core documents + 1
+## Beyond attribution: causal validation, forecasting, uncertainty, orchestration, AI
+
+Four additions that directly answer the gaps the core project names as open:
+
+| Addition | What it answers | Validated result |
+|---|---|---|
+| **Incrementality testing** (`src/causal/incrementality.py`) | "Attribution is correlational — what would a real causal test show?" | Simulated 30% causal share recovered at p=0.006 by two independent methods; negative control passed (0/20 false positives at n_geos≥60) |
+| **Time-series forecasting** (`src/forecasting.py`) | "Is this month's pattern stable or a fluke?" | Beats naive baseline 4x on data with real signal — **and honestly reports it does NOT beat naive on the real 31-day dataset**, the correct answer for too-short history |
+| **Uncertainty quantification** (`src/uncertainty.py`) | "How confident should I be in any of these numbers?" | Every credit share in Document 5 now has a bootstrap 90% CI; calibration verified at 89.7% coverage against a known 20% true rate |
+| **Orchestration** (`orchestration/attribution_flow.py`) | "This only runs when someone clicks a button" | A Prefect flow (free, self-hosted, no card ever) — retries, logging, schedulable — verified running end-to-end |
+| **AI executive summary** (`src/ai_insights.py`) | "Someone still has to write the paragraph by hand" | Opt-in LLM call (your own API key) that writes Document 6's summary automatically, constrained to the same caveats stated everywhere else in this project |
+
+Full writeup, math, and honest limitations for all five: [`docs/08_advanced_analytics.md`](docs/08_advanced_analytics.md).
+
+## The 6 core documents + 2
 
 | # | Document | Purpose |
 |---|----------|---------|
@@ -260,6 +276,7 @@ smoke test that the Flask app actually boots.
 | 5 | [`docs/05_validation_report_template.md`](docs/05_validation_report_template.md) | Model comparison + validation, filled with real results |
 | 6 | [`docs/06_business_recommendation_template.md`](docs/06_business_recommendation_template.md) | Executive-facing ROI/budget reallocation recommendation |
 | 7 | [`docs/07_frontend_options.md`](docs/07_frontend_options.md) | Frontend tech-stack tradeoffs, argued without bias toward what was shipped |
+| 8 | [`docs/08_advanced_analytics.md`](docs/08_advanced_analytics.md) | Incrementality testing, forecasting, uncertainty, orchestration, AI summary |
 
 Also: [`STEP_BY_STEP_GUIDE.md`](STEP_BY_STEP_GUIDE.md) (build plan),
 [`LEARNING_GUIDE.md`](LEARNING_GUIDE.md) (concepts in the order you need them),
@@ -283,12 +300,18 @@ src/
   roi.py                        # ROI/ROAS + capped heuristic reallocation
   roi_optimizer.py               # LP-exact reallocation (scipy.optimize.linprog)
   pipeline.py                   # single function: data -> full result dict
+  causal/incrementality.py      # geo-holdout causal validation (Document 8)
+  forecasting.py                # time-series forecast + walk-forward backtest
+  uncertainty.py                # Beta-Binomial credible intervals + bootstrap CIs
+  ai_insights.py                # optional LLM-generated executive summary
+orchestration/
+  attribution_flow.py           # Prefect flow: load -> compute -> persist, schedulable
 dashboards/
-  server.py                     # Flask API (/api/run, /api/upload, /api/meta)
+  server.py                     # Flask API (/api/run, /api/upload, /api/meta, /api/ai_summary)
   index.html                    # dashboard UI (dark/light, Plotly.js, no build step)
   app.py                        # earlier Streamlit version, kept for comparison
-docs/                          # the 7 documents above
-tests/                         # pytest suite, 52 tests -- hand-verified expected
+docs/                          # the 8 documents above
+tests/                         # pytest suite, 78 tests -- hand-verified expected
                                 # values, not just smoke tests (see Tests above)
 .github/workflows/tests.yml    # CI: runs the suite on every push (Python 3.11 + 3.12)
 ```

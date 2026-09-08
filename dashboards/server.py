@@ -21,6 +21,7 @@ from flask import Flask, jsonify, request, send_from_directory
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from src.ai_insights import generate_narrative_summary
 from src.data_generator import DEFAULT_CHANNELS, generate_dataset
 from src.pipeline import run_pipeline
 from src.real_dataset_adapter import DATASET_DESCRIPTION, load_real_dataset
@@ -134,6 +135,20 @@ def upload():
     )
     result["source"] = "upload"
     return jsonify(result)
+
+
+@app.post("/api/ai_summary")
+def ai_summary():
+    """Optional AI-generated executive summary — see src/ai_insights.py for
+    why this is opt-in, server-side-key-only. Takes the pipeline result the
+    frontend already has (no recomputation) and asks an LLM to write the
+    paragraph a human would otherwise write by hand for docs/06.
+    """
+    body = request.get_json(force=True)
+    pipeline_result = body.get("result")
+    if not pipeline_result:
+        return jsonify({"error": "No pipeline result provided."}), 400
+    return jsonify(generate_narrative_summary(pipeline_result))
 
 
 if __name__ == "__main__":

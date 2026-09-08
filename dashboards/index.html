@@ -544,6 +544,16 @@ function render(data) {
     </div></div>`;
   }
 
+  html += `<div class="callout" id="aiSummaryCallout" style="align-items:center;">
+    <div class="icon">✨</div>
+    <div style="flex:1;">
+      <div id="aiSummaryContent">
+        <b>AI executive summary</b> — have an LLM write the paragraph a human analyst would write for this exact result.
+        <button class="dl-btn" id="aiSummaryBtn" style="margin-left:8px;">Generate</button>
+      </div>
+    </div>
+  </div>`;
+
   if (data.ml_diagnostics) {
     const m = data.ml_diagnostics;
     const trustColor = (m.auc === null) ? 'var(--warn)' : (m.auc >= 0.65 ? 'var(--good)' : (m.auc >= 0.55 ? 'var(--warn)' : 'var(--bad)'));
@@ -625,6 +635,7 @@ function render(data) {
 
   $('dlRoi').onclick = () => downloadCsv(data.roi, 'roi_summary.csv');
   $('dlCredit').onclick = () => downloadCsv(data.credit_long, 'channel_credit.csv');
+  $('aiSummaryBtn').onclick = () => generateAiSummary(data);
 }
 
 function renderLpTable(roi, lp) {
@@ -793,6 +804,27 @@ function downloadCsv(rows, filename) {
   a.href = URL.createObjectURL(blob);
   a.download = filename;
   a.click();
+}
+
+async function generateAiSummary(data) {
+  const content = $('aiSummaryContent');
+  const btn = $('aiSummaryBtn');
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  try {
+    const res = await fetch('/api/ai_summary', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ result: data }),
+    });
+    const out = await res.json();
+    if (out.error) {
+      content.innerHTML = `<b>AI executive summary</b> — <span style="color:var(--text-faint);">${out.error}</span>`;
+    } else {
+      content.innerHTML = `<b>AI executive summary</b> <span style="font-size:11px;color:var(--text-faint);">(${out.model})</span><br>${out.summary}`;
+    }
+  } catch (e) {
+    content.innerHTML = `<b>AI executive summary</b> — <span style="color:var(--bad);">Request failed: ${e.message}</span>`;
+  }
 }
 
 // Auto-run on load with default real-data settings
