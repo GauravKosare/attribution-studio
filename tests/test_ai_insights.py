@@ -36,6 +36,10 @@ def _fake_gemini_module(text="ok", raise_error=None):
             def __init__(self, **kwargs):
                 pass
 
+        class ThinkingConfig:
+            def __init__(self, **kwargs):
+                pass
+
     fake_genai = types.SimpleNamespace(Client=FakeClient, types=FakeTypes)
     fake_google = types.SimpleNamespace(genai=fake_genai)
     return fake_google, fake_genai, FakeTypes

@@ -83,7 +83,15 @@ def _call_gemini(condensed: dict, api_key: str, model: str = "gemini-3.6-flash")
             model=model,
             contents=json.dumps(condensed, default=str),
             config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT, max_output_tokens=400
+                system_instruction=SYSTEM_PROMPT,
+                max_output_tokens=600,
+                # Newer Gemini models spend part of max_output_tokens on an
+                # internal "thinking" pass before the visible answer -- for a
+                # short summarization task that budget can eat the entire cap
+                # and truncate the real response to nothing. Disable it: this
+                # is a direct restatement of already-computed numbers, not a
+                # task that benefits from extended reasoning.
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
             ),
         )
         text = (response.text or "").strip()
