@@ -84,39 +84,21 @@ def _call_gemini(condensed: dict, api_key: str, model: str = "gemini-3.6-flash")
             contents=json.dumps(condensed, default=str),
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
-                max_output_tokens=600,
-                # Newer Gemini models spend part of max_output_tokens on an
-                # internal "thinking" pass before the visible answer -- for a
-                # short summarization task that budget can eat the entire cap
-                # and truncate the real response to nothing. Gemini 3.x
-                # models control this via thinking_level (a string: LOW/
-                # MEDIUM/HIGH), not the older numeric thinking_budget --
-                # passing thinking_budget to a 3.x model is REJECTED
-                # (400 INVALID_ARGUMENT), confirmed against the live API.
-                # LOW is the minimum available (no MINIMAL/off option), which
-                # is enough for this task: a direct restatement of numbers
-                # already computed, not something that benefits from
-                # extended reasoning.
+                # max_output_tokens caps thinking + the visible answer
+                # COMBINED, not the answer alone. Measured directly against
+                # the live API: thinking_level="LOW" (the floor -- Gemini 3.x
+                # has no MINIMAL/off option) still consumes ~570-600 tokens
+                # on its own before writing a single word of the actual
+                # answer. 1500 leaves roughly 900 tokens of headroom for the
+                # ~150-word answer after thinking, confirmed sufficient.
+                max_output_tokens=1500,
                 thinking_config=types.ThinkingConfig(thinking_level="LOW"),
             ),
         )
         text = (response.text or "").strip()
-        # TEMPORARY DIAGNOSTIC -- remove once the truncation cause is
-        # confirmed against the live API. Surfaces finish_reason + token
-        # usage so a short/truncated response can be root-caused from one
-        # more live call instead of guessed at again.
-        try:
-            candidates = getattr(response, "candidates", None) or []
-            usage = getattr(response, "usage_metadata", None)
-            diag = {
-                "finish_reason": str(getattr(candidates[0], "finish_reason", None)) if candidates else None,
-                "usage": usage.model_dump() if usage and hasattr(usage, "model_dump") else None,
-            }
-        except Exception:
-            diag = None
         if not text:
-            return {"error": "Gemini returned an empty response.", "_diag": diag}
-        return {"summary": text, "model": model, "provider": "gemini", "_diag": diag}
+            return {"error": "Gemini returned an empty response."}
+        return {"summary": text, "model": model, "provider": "gemini"}
     except Exception as e:  # pragma: no cover -- network/API errors
         return {"error": f"Gemini call failed: {e}"}
 

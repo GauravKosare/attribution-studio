@@ -156,7 +156,12 @@ def ai_summary():
     pipeline_result = body.get("result")
     if not pipeline_result:
         return jsonify({"error": "No pipeline result provided."}), 400
-    return jsonify(generate_narrative_summary(pipeline_result))
+    # Optional override of which provider(s) to try, in order -- e.g.
+    # {"providers": ["groq"]} to force a specific one (useful if you know
+    # Gemini is rate-limited, or for isolating one provider while testing).
+    # Omit for the default full Gemini -> Groq -> Anthropic chain.
+    providers = body.get("providers")
+    return jsonify(generate_narrative_summary(pipeline_result, providers=providers))
 
 
 if __name__ == "__main__":
