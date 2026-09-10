@@ -539,7 +539,7 @@ function render(data) {
   if (data.divergence) {
     const d = data.divergence;
     html += `<div class="callout"><div class="icon">💡</div><div>
-      <b>Biggest divergence:</b> Last-touch over-credits <b>${d.over_credited}</b> by ${d.over_pts > 0 ? '+' : ''}${d.over_pts} pts vs. Markov,
+      <b>Biggest divergence:</b> vs. the Markov model, last-touch over-credits <b>${d.over_credited}</b> by ${d.over_pts} pts
       and under-credits <b>${d.under_credited}</b> by ${d.under_pts} pts. This is the actionable gap between naive and data-driven attribution.
     </div></div>`;
   }

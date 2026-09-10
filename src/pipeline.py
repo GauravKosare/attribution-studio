@@ -104,12 +104,18 @@ def run_pipeline(
 
     divergence = None
     if "Last-touch" in pivot.columns and "Markov (removal effect)" in pivot.columns:
+        # diff = Markov credit - Last-touch credit, per channel.
+        #   diff > 0  -> the data-driven model assigns MORE than last-touch did,
+        #               i.e. last-touch was UNDER-crediting that channel.
+        #   diff < 0  -> last-touch assigned more than the model,
+        #               i.e. last-touch was OVER-crediting that channel.
+        # Both *_pts values are reported as positive magnitudes.
         diff = (pivot["Markov (removal effect)"] - pivot["Last-touch"]).sort_values()
         divergence = {
-            "under_credited": diff.index[0],
-            "under_pts": round(float(diff.iloc[0]) * 100, 1),
-            "over_credited": diff.index[-1],
-            "over_pts": round(float(diff.iloc[-1]) * 100, 1),
+            "over_credited": diff.index[0],
+            "over_pts": round(float(-diff.iloc[0]) * 100, 1),
+            "under_credited": diff.index[-1],
+            "under_pts": round(float(diff.iloc[-1]) * 100, 1),
         }
 
     total_conversions = int(journeys["converted"].sum())

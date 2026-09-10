@@ -37,3 +37,6 @@ data/processed/*.json
 # Prefect local orchestration state (self-hosted, no server needed for
 # ad-hoc runs -- see orchestration/attribution_flow.py)
 .prefect/
+
+# Local working notes (council transcripts, demo script) -- not for the public repo
+_local/

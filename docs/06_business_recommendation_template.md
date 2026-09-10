@@ -14,15 +14,20 @@ increase per channel** (`max_increase_pct=0.50` in `src/roi.py::recommend_reallo
 see the note below the ROI table for why the cap exists and what it costs.
 
 ### The headline
-> Last-touch attribution (today's default) over-credits **Instagram** by **+4.1 pts**
-> and under-credits nothing as sharply as it *mis-funds* **Paid Search**, which earns
-> **22.3%** of Markov-modeled conversion credit on just **8.6%** of spend. Shifting
-> spend away from the two lowest-ROAS channels (Online Video, Facebook) toward Paid
-> Search and Online Display — capped at +50% growth per channel so no channel gets an
-> unrealistic overnight jump — is projected, under a simplifying linear-ROAS
-> assumption, to lift attributed revenue by **~3%**. That's the trustworthy,
-> conservative estimate; see Expected impact for why the *uncapped* version of this
-> same reallocation would have overstated the case.
+> Last-touch attribution (today's default) **under-credits Instagram by 4.1 points**
+> (13.6% vs. 17.7% under Markov) and **over-credits Online Video by 3.9 points**
+> (22.9% vs. 18.9%). Shapley, an independently derived model, agrees on the direction
+> for both. This credit-side finding rests only on behavioral data and no cost
+> assumption — it is the robust core of this report.
+>
+> Converting that into a *budget* move additionally requires channel spend, which this
+> dataset does not contain (it is estimated — see the spend caveat). A
+> [CPM sensitivity check](09_robustness_cpm_sensitivity.md) shows the reallocation
+> direction is stable for only one channel: **Online Display** is genuinely under-funded
+> across essentially all plausible CPM assumptions. The larger "Paid Search is starved"
+> figure is an artifact of one weak CPM input and reverses under most alternatives —
+> treat the dollar table below as a demonstration of the capped-reallocation *mechanism*,
+> not as an audited recommendation.
 
 ### ROI table
 *(Spend is a CPM-based estimate — see caveat below the table.)*
@@ -52,23 +57,32 @@ is a property of the cap, not a bug: see `unallocated_pool` in `src/roi.py`, whi
 the dashboard also surfaces as a warning banner when it's non-zero.
 
 ### Recommended actions
-1. **Increase** spend on **Paid Search** (from $323 to $485 est., **+50%, capped**)
-   — it has by far the highest modeled ROAS (44.0x) and is currently the most
-   under-funded channel relative to the conversion credit it earns. The model's
-   uncapped math would have proposed +120%; +50% is the realistic cycle-one move.
-2. **Increase** spend on **Online Display** (from $241 to $362 est., **+50%,
-   capped**) — second-highest ROAS (28.3x), also under-funded (uncapped math: +103%).
+
+*Ranked by how much each survives the spend-estimation caveat.*
+
+1. **Rebalance credit expectations, not budget, first.** The reliable finding is that
+   Instagram is doing 4 points more work than last-touch reporting shows, and Online
+   Video 4 points less. Before moving a dollar, stop judging Instagram on last-click
+   and stop rewarding Online Video for it. This costs nothing and needs no cost data.
+2. **Increase** spend on **Online Display** (from $241 to $362 est., **+50%, capped**)
+   — second-highest modeled ROAS (28.3x) and the one channel that comes out under-funded
+   across essentially every plausible CPM assumption (small base, genuinely low CPM,
+   ~10.7% Markov credit).
 3. **Decrease** spend on **Online Video** (−20%, from $1,319 to $1,055) — largest
-   spend share (35.2%) but lowest ROAS (9.2x) and the channel most over-credited by
-   last-touch relative to Markov (see Document 5 §4).
-4. **Decrease** spend on **Facebook** and **Instagram** (−20% each) — both
-   reasonable performers, but below the average ROAS threshold the model's
-   reallocation logic uses to distinguish winners from losers.
-5. **Leave $354 (9.5% of current spend) unallocated this cycle** rather than force
-   it onto Paid Search or Online Display beyond the +50% cap. Revisit next cycle
-   once this round's results are in — if Paid Search sustains its ROAS at the new
-   spend level, raise the cap or run a second +50% step rather than jumping straight
-   to the uncapped +120%.
+   spend share (35.2%), lowest ROAS (9.2x), and the channel last-touch over-credits
+   most relative to Markov (see Document 5 §4). Robust in direction.
+4. **Treat the Paid Search "+50%" line as conditional.** Its modeled ROAS (44x) is
+   the highest in the table, but that number divides real credit by *estimated* spend,
+   and Paid Search's estimated spend share (8.6%) is the least defensible cell in the
+   dataset. Only raise Paid Search budget after checking its real platform cost.
+5. **Decrease** spend on **Facebook** (−20%) — a reasonable performer, but below the
+   average ROAS threshold the reallocation logic uses. *Note:* the model also flags
+   Instagram for a −20% cut on the same ROAS-threshold logic, which sits awkwardly
+   next to the credit finding that Instagram is under-recognised — a good example of
+   why the ROAS-threshold heuristic is a starting point, not the last word.
+6. **Leave the unallocated remainder ($354, ~9.5% of current spend) unallocated this
+   cycle** rather than force it past the +50% cap. Revisit next cycle once real cost
+   data and this round's results are in.
 
 ### Expected impact
 - **Projected revenue lift: ~3.1%** ($63,874 → ~$65,841), computed by applying each

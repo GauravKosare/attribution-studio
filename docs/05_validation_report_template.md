@@ -64,9 +64,10 @@ diverge most from Markov/Shapley.
   these numbers in a real stakeholder deck.
 
 ## 4. Model agreement / divergence analysis
-**Headline finding:** Last-touch over-credits **Instagram** by **+4.1 points**
-relative to Markov (13.6% → 17.7%), and under-credits **Online Video** by **-3.9
-points** (22.9% → 18.9%).
+**Headline finding:** Relative to Markov, last-touch **under-credits Instagram** by
+**4.1 points** (13.6% vs. 17.7%) and **over-credits Online Video** by **3.9 points**
+(22.9% vs. 18.9%) — i.e. last-touch systematically hands credit that the sequence-aware
+model says belongs to Instagram over to Online Video instead.
 
 Why: Online Video's raw volume (113,302 events) is smaller than Facebook's or Paid
 Search's, and last-touch credit depends only on which channel happens to be the

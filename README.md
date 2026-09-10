@@ -3,21 +3,40 @@
 [![tests](https://github.com/GauravKosare/attribution-studio/actions/workflows/tests.yml/badge.svg)](https://github.com/GauravKosare/attribution-studio/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**A working analytics system that answers a question every marketing team argues
-about: which channel actually deserves credit for a conversion, and where should
-budget move as a result?**
+**The finding, on a real anonymized 232,691-user dataset:** the last-touch
+attribution that ad platforms report by default — and that most budgets are set on —
+**under-credits Instagram by 4.1 percentage points and over-credits Online Video by
+3.9**, compared to a sequence-aware Markov removal-effect model. A Shapley-value model,
+derived completely independently, agrees on the direction. That gap is the difference
+between funding the channel that *starts* journeys and funding the one that happens to
+get the *last click*.
 
-Give it real customer-journey data (or generate synthetic data, or upload your
-own CSVs), and it reconstructs every customer's path across channels, scores each
-channel's credit with **8 different attribution models** — from naive last-touch
-to a Markov-chain removal-effect model to Shapley values to an XGBoost+SHAP
-classifier — and turns the disagreement between those models into a concrete,
-capped budget-reallocation recommendation with a real linear-programming
-comparison alongside it. Everything recomputes live in a dashboard; nothing here
-is a static report.
+This project is the pipeline that produces that sentence from raw event data — and
+then quantifies how much budget the gap moves, with every assumption labelled. It
+reconstructs each customer's cross-channel path, scores channel credit with 8
+attribution models (rule-based baselines, Markov removal-effect, exact Shapley,
+XGBoost+SHAP), surfaces exactly where they disagree, and turns that into a capped
+budget-reallocation recommendation with a linear-programming optimum alongside for
+comparison. Everything recomputes live in a dashboard — nothing here is a static report.
 
-**[Live results below](#real-world-results) come from a real, anonymized
-232,691-user customer-journey dataset — not synthetic placeholder numbers.**
+**One-paragraph version (for a recruiter's 60 seconds):** Marketing teams set budget
+on last-touch attribution because it's what the ad platforms report. It systematically
+overpays whatever channel gets the final click and underpays the channels that created
+the demand. This system reconstructs the full journey, scores it 8 ways including two
+independent data-driven models, and shows — on real data — that last-touch and Markov
+disagree by ~4 points on two of five channels, with Shapley confirming the direction.
+The rule-based models, by contrast, cluster within ~1.5 points of each other: the
+data-driven correction is the whole story. Built from the underlying math (not
+black-box libraries) where it mattered, cross-checked with an independent SQL
+re-implementation, and covered by 82 hand-verified tests.
+
+**Every number below comes from an actual run against that real dataset — not
+synthetic placeholders.** Channel *spend* is the one estimated input (the public
+dataset has no cost data); it's derived from impression volume via labelled CPM
+assumptions, and [the dollar reallocation is treated accordingly](#roi--capped-budget-reallocation).
+
+<!-- TODO: add 4-minute walkthrough link here once recorded.
+     Format:  ### ▶ [4-minute walkthrough](LOOM_LINK)   (place directly above the live link) -->
 
 ### **[→ Try it live: attribution-studio.onrender.com](https://attribution-studio.onrender.com)**
 Hosted on Render's free tier, so two things to expect: the first request after
@@ -71,14 +90,17 @@ It was built to:
 
 ## What problem it solves
 
-> "Last-touch attribution said Paid Search deserved 22% of credit. But it's
-> getting only 8.6% of spend. Meanwhile Online Video absorbs 35% of spend but a
-> Markov removal-effect analysis — which measures how much conversion rate
-> actually drops if you remove a channel from the journey graph — shows it earns
-> only 19% of credit. That gap is real money sitting in the wrong place."
+> "Last-touch says Online Video earns 22.9% of the credit. A Markov removal-effect
+> analysis — which measures how much conversion probability actually drops if you
+> pull a channel out of the journey graph entirely — says 18.9%. Those 4 points
+> belong to Instagram, which last-touch scores at 13.6% and Markov at 17.7%,
+> because Instagram shows up early in journeys and rarely gets the final click.
+> Set budget on last-touch and you are quietly moving money from the channel that
+> starts demand to the channel that closes it."
 
 This project builds the actual pipeline that produces that sentence from data,
-instead of asserting it.
+instead of asserting it — and then, where cost data exists, quantifies what the gap
+is worth.
 
 ## Skills this project is built to demonstrate (and did, in practice)
 - **Marketing analytics domain knowledge**: attribution modeling theory, ROI/ROAS,
@@ -134,23 +156,40 @@ result = run_pipeline(tp, conv, spend, lookback_days=30, collapse_minutes=30,
 | Online Video | 21.4% | 22.9% | 22.1% | 22.4% | 22.1% | **18.9%** | 21.2% |
 | Paid Search | 23.2% | 22.4% | 22.8% | 22.6% | 22.8% | 22.3% | 23.4% |
 
-**Headline finding**: last-touch over-credits Instagram by **+4.1 points** vs.
-Markov, and under-credits nothing as sharply as it *mis-funds* Paid Search — which
-earns 22.3% of Markov-modeled credit on just 8.6% of estimated spend. All credit
-shares independently verified to sum to 1.0 per model (max rounding error 0.0001).
+**Headline finding**: relative to Markov, last-touch **under-credits Instagram by
+4.1 points** (13.6% → 17.7%) and **over-credits Online Video by 3.9 points**
+(22.9% → 18.9%). Shapley — an independently derived model — agrees on the direction
+for both. The five rule-based models, by contrast, sit within ~1.5 points of each
+other: the sequence-aware correction is the entire finding, and it does not depend
+on any spend or cost assumption. All credit shares independently verified to sum to
+1.0 per model (max rounding error 0.0001).
 
 ### ROI & capped budget reallocation (Markov model, +50% max increase per channel)
+
+> **Read this table as a mechanism demo, not a business recommendation.** The credit
+> shares above are solid. This table also needs *spend*, which the public dataset
+> doesn't contain — it's estimated from impression volume × assumed CPMs. A
+> [sensitivity check](docs/09_robustness_cpm_sensitivity.md) shows the "Paid Search is
+> under-funded" call is an artifact of one weak CPM assumption: Paid Search has 25.8%
+> of impressions, and under most plausible CPMs it comes out *over*-funded, not under.
+> The one spend-dependent call that survives across scenarios is **Online Display**
+> (small, cheap, decent credit → genuinely under-funded). What this table reliably
+> demonstrates is the *reallocation mechanism* — capped water-filling, honest
+> unallocated remainder — not a specific dollar move.
+
 | Channel | Est. spend | Spend % | Credit % | ROAS | Recommended | Δ |
 |---|---|---|---|---|---|---|
 | Online Video | $1,319 | 35.2% | 18.9% | 9.18x | $1,055 | −20% |
 | Facebook | $1,278 | 34.1% | 30.4% | 15.19x | $1,023 | −20% |
 | Instagram | $584 | 15.6% | 17.7% | 19.35x | $467 | −20% |
-| Paid Search | $323 | 8.6% | 22.3% | **44.03x** | $485 | **+50% (capped)** |
+| Paid Search | $323 | 8.6%* | 22.3% | **44.03x** | $485 | **+50% (capped)** |
 | Online Display | $241 | 6.4% | 10.7% | 28.32x | $362 | **+50% (capped)** |
 
-Without the +50% cap, the naive proportional math would have proposed **+120%**
-for Paid Search — an unrealistic overnight jump purely because it started
-small. The cap redistributes via water-filling and leaves $354 (9.5%) honestly
+*\*Paid Search spend % is the assumption doing all the work here — see the note above.*
+
+The +50% cap is the point of the exercise: without it, the naive proportional math
+proposes **+120%** for a channel purely because it started from a small (estimated)
+base. The cap redistributes via water-filling and leaves $354 (9.5%) honestly
 unallocated rather than forcing it somewhere unrealistic.
 
 ### Heuristic vs. LP-optimal reallocation (same budget, same caps)
@@ -245,7 +284,7 @@ everything else still works exactly the same.
 ```bash
 python -m pytest tests/ -v
 ```
-78 tests, ~45s. Not smoke tests — every attribution model is checked against a
+82 tests, ~1–2 min. Not smoke tests — every attribution model is checked against a
 hand-computed toy example with a worked derivation in the test file's docstring
 (e.g. `tests/test_markov.py` hand-solves a 2-channel absorbing chain and asserts
 the code reproduces it to 1e-6), `tests/test_journey_builder_sql.py` exists
@@ -271,7 +310,7 @@ Four additions that directly answer the gaps the core project names as open:
 
 Full writeup, math, and honest limitations for all five: [`docs/08_advanced_analytics.md`](docs/08_advanced_analytics.md).
 
-## The 6 core documents + 2
+## The 6 core documents + 3
 
 | # | Document | Purpose |
 |---|----------|---------|
@@ -283,6 +322,7 @@ Full writeup, math, and honest limitations for all five: [`docs/08_advanced_anal
 | 6 | [`docs/06_business_recommendation_template.md`](docs/06_business_recommendation_template.md) | Executive-facing ROI/budget reallocation recommendation |
 | 7 | [`docs/07_frontend_options.md`](docs/07_frontend_options.md) | Frontend tech-stack tradeoffs, argued without bias toward what was shipped |
 | 8 | [`docs/08_advanced_analytics.md`](docs/08_advanced_analytics.md) | Incrementality testing, forecasting, uncertainty, orchestration, AI summary |
+| 9 | [`docs/09_robustness_cpm_sensitivity.md`](docs/09_robustness_cpm_sensitivity.md) | How much the estimated-spend assumption moves the conclusion (Monte Carlo over CPM ranges) |
 
 Also: [`STEP_BY_STEP_GUIDE.md`](STEP_BY_STEP_GUIDE.md) (build plan),
 [`LEARNING_GUIDE.md`](LEARNING_GUIDE.md) (concepts in the order you need them),
@@ -316,8 +356,8 @@ dashboards/
   server.py                     # Flask API (/api/run, /api/upload, /api/meta, /api/ai_summary)
   index.html                    # dashboard UI (dark/light, Plotly.js, no build step)
   app.py                        # earlier Streamlit version, kept for comparison
-docs/                          # the 8 documents above
-tests/                         # pytest suite, 78 tests -- hand-verified expected
+docs/                          # the 9 documents above
+tests/                         # pytest suite, 82 tests -- hand-verified expected
                                 # values, not just smoke tests (see Tests above)
 .github/workflows/tests.yml    # CI: runs the suite on every push (Python 3.11 + 3.12)
 ```
